@@ -1,11 +1,219 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Live Picture Sender</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dollar Budget Manager</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #cfd9df, #e2ebf0);
+      padding: 20px;
+      backdrop-filter: blur(5px);
+    }
+
+    .logo {
+      text-align: center;
+      font-size: 32px;
+      font-weight: 800;
+      color: #0f3057;
+      letter-spacing: 2px;
+      margin-bottom: 30px;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+    }
+
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .box {
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+      padding: 20px;
+      backdrop-filter: blur(3px);
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 20px;
+      background: #0f3057;
+      color: white;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    label {
+      display: block;
+      margin: 10px 0 5px;
+      font-weight: 500;
+    }
+
+    input[type="number"], input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      margin-bottom: 10px;
+      background-color: #f9f9f9;
+      transition: all 0.2s ease;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #0f3057;
+      box-shadow: 0 0 5px rgba(15,48,87,0.3);
+    }
+
+    .result {
+      font-weight: bold;
+      margin-top: 10px;
+      background: #f0f4f8;
+      padding: 10px;
+      border-radius: 6px;
+      border-left: 5px solid #0f3057;
+    }
+
+    .save-btn {
+      display: inline-block;
+      margin-top: 15px;
+      background-color: #0f3057;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      transition: transform 0.1s ease;
+    }
+
+    .save-btn:active {
+      transform: scale(0.98);
+    }
+  </style>
 </head>
 <body>
-<script src="script.js"></script>
+  <div class="logo">💰 Haider Skyline Budget Manager</div>
+  <div class="grid-container">
+    <!-- Dollar Section -->
+    <div class="box">
+      <h2>Dollar Section</h2>
+      <label>Dollar 1: <input type="number" id="d1" /></label>
+      <label>Dollar 2: <input type="number" id="d2" /></label>
+      <label>Dollar 3: <input type="number" id="d3" /></label>
+      <label>Multiply With: <input type="number" id="multiplier" value="288" /></label>
+      <div class="result">Converted Total (×<span id="multLabel">288</span>): <span id="convertedTotal">0</span></div>
+    </div>
+
+    <!-- Padding & Balance -->
+    <div class="box">
+      <h2>Padding & Balance</h2>
+      <label>Padding 1: <input type="number" id="pp1" /></label>
+      <label>Padding 2: <input type="number" id="pp2" /></label>
+      <label>Account Balance: <input type="number" id="acc" /></label>
+      <div class="result">Total Budget: <span id="budgetTotal">0</span></div>
+    </div>
+
+    <!-- Investment Section -->
+    <div class="box">
+      <h2>Investment</h2>
+      <label>Invested Dollar: <input type="number" id="invD" /></label>
+      <label>Person Ad: <input type="number" id="personPayment" /></label>
+      <label>Advance Ad: <input type="number" id="adv" /></label>
+      <label>Investor Name: <input type="text" id="invName" placeholder="e.g. Ali" /></label>
+      <label>Extra Payment 1: <input type="number" id="ex1" /></label>
+      <label>Extra Payment 2: <input type="number" id="ex2" /></label>
+      <label>Extra Payment 3: <input type="number" id="ex3" /></label>
+      <label>Extra Payment 4: <input type="number" id="ex4" /></label>
+      <div class="result">Total Invested: <span id="investedTotal">0</span></div>
+    </div>
+
+    <!-- Summary + Save PDF -->
+    <div class="box">
+      <h2>Summary</h2>
+      <div class="result">Date: <span id="currentDate"></span></div>
+      <div class="result">Total Available: <span id="fullTotal">0</span></div>
+      <div class="result">Remaining: <span id="remaining">0</span></div>
+      <button class="save-btn" onclick="downloadPDF()">💾 Save as PDF</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    const ids = ['d1','d2','d3','multiplier','pp1','pp2','acc','invD','adv','personPayment','invName','ex1','ex2','ex3','ex4'];
+    const inputs = ids.map(id => document.getElementById(id));
+
+    const convertedTotal = document.getElementById("convertedTotal");
+    const budgetTotal = document.getElementById("budgetTotal");
+    const investedTotal = document.getElementById("investedTotal");
+    const fullTotal = document.getElementById("fullTotal");
+    const remaining = document.getElementById("remaining");
+    const currentDate = document.getElementById("currentDate");
+    const multLabel = document.getElementById("multLabel");
+
+    function updateDate() {
+      const today = new Date();
+      const dateString = today.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+      currentDate.textContent = dateString;
+    }
+
+    inputs.forEach(input => {
+      input.addEventListener("input", calculate);
+      input.addEventListener("input", () => playSound('type'));
+    });
+
+    function playSound(type) {
+      const audio = new Audio(type === 'type' ? 'https://www.myinstants.com/media/sounds/keyboard-press.mp3' : 'https://www.myinstants.com/media/sounds/button-3.mp3');
+      audio.play();
+    }
+
+    function calculate() {
+      const mult = (+multiplier.value || 0);
+      multLabel.textContent = mult;
+
+      const dTotal = (+d1.value || 0) + (+d2.value || 0) + (+d3.value || 0);
+      const converted = dTotal * mult;
+      convertedTotal.textContent = converted.toFixed(2);
+
+      const budget = (+pp1.value || 0) + (+pp2.value || 0) + (+acc.value || 0);
+      budgetTotal.textContent = budget.toFixed(2);
+
+      const invested = (+invD.value || 0) + (+personPayment.value || 0) + (+adv.value || 0) + (+ex1.value || 0) + (+ex2.value || 0) + (+ex3.value || 0) + (+ex4.value || 0);
+      investedTotal.textContent = invested.toFixed(2);
+
+      const totalAvailable = converted + budget;
+      fullTotal.textContent = totalAvailable.toFixed(2);
+
+      const remain = totalAvailable - invested;
+      remaining.textContent = remain.toFixed(2);
+    }
+
+    function downloadPDF() {
+      playSound('click');
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      const summary = `Haider Skyline Budget Summary\n\n` +
+        `Date: ${currentDate.textContent}\n` +
+        `Converted Total: ${convertedTotal.textContent}\n` +
+        `Total Budget: ${budgetTotal.textContent}\n` +
+        `Total Invested: ${investedTotal.textContent}\n` +
+        `Investor Name: ${invName.value || 'N/A'}\n` +
+        `Total Available: ${fullTotal.textContent}\n` +
+        `Remaining: ${remaining.textContent}`;
+
+      summary.split("\n").forEach((line, i) => {
+        doc.text(line, 10, 10 + i * 10);
+      });
+
+      doc.save("budget-summary.pdf");
+    }
+
+    updateDate();
+  </script>
 </body>
 </html>
